@@ -1,8 +1,7 @@
 flask
-gunicorn
 numpy
 opencv-python
-tensorflow
 pillow
+tflite-runtime
 
 
