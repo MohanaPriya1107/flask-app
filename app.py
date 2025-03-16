@@ -5,20 +5,27 @@ import tensorflow as tf
 from flask import Flask, request, jsonify, render_template
 from PIL import Image
 
+# Disable GPU (Force CPU mode)
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 # Initialize Flask app
 app = Flask(__name__)
 
-# Load TFLite model (use relative path)
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "best-fp16.tflite")
-interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
-interpreter.allocate_tensors()
+# Load TFLite model
+try:
+    MODEL_PATH = os.path.join(os.path.dirname(__file__), "best-fp16.tflite")
+    interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+    interpreter.allocate_tensors()
 
-# Get input/output details
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
+    # Get input/output details
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
 
-# Get input shape dynamically
-input_shape = input_details[0]['shape']  # (1, height, width, channels)
+    # Get input shape dynamically
+    input_shape = input_details[0]['shape']  # (1, height, width, channels)
+except Exception as e:
+    print(f"Error loading TFLite model: {e}")
+    interpreter = None  # Prevent crashes if model fails to load
 
 def preprocess_image(image):
     """ Preprocess the image to match model input. """
@@ -37,6 +44,9 @@ def preprocess_image(image):
 
 def predict_freshness(image):
     """ Run the model and return the classification result. """
+    if interpreter is None:
+        return "Model failed to load"
+
     try:
         img = preprocess_image(image)
         if isinstance(img, str):
@@ -97,4 +107,4 @@ def predict():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))  # Use Render's assigned port
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=True, threaded=False)  # Disable threading for TensorFlow Lite
